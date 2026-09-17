@@ -11,3 +11,8 @@ Exemplos atuais: a familia GPT (OpenAI), Claude (Anthropic), Gemini (Google) e m
 
 No nucleo de praticamente todo LLM atual esta a arquitetura Transformer, que processa o texto inteiro de uma vez usando um mecanismo chamado atencao (attention) para decidir quais partes do texto sao relevantes entre si. O treino acontece em duas grandes fases: pre-treino, onde o modelo aprende padroes gerais da linguagem lendo bilhoes de paginas de texto, e pos-treino (fine-tuning, RLHF), onde e ajustado para seguir instrucoes e se comportar de forma util e segura.
 
+
+## Por que esta em alta agora
+
+Desde o lancamento do ChatGPT em 2022, os LLMs deixaram de ser um topico de pesquisa academica para virar infraestrutura de produto: assistentes de codigo, atendimento ao cliente, pesquisa e automacao de tarefas. Em 2025-2026 a corrida evoluiu para modelos com raciocinio mais longo (thinking/reasoning), contextos maiores e integracao com ferramentas externas via agentes -- o LLM deixou de ser so um gerador de texto e passou a ser o motor de decisao de sistemas mais complexos.
+
