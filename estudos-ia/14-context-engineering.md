@@ -9,3 +9,8 @@ Janela de contexto e a quantidade maxima de tokens que um modelo consegue consid
 
 Mesmo com janelas de centenas de milhares ou milhoes de tokens, encher o contexto de tudo piora a qualidade (o modelo se perde, o chamado 'context rot') e aumenta o custo. Por isso se usam tecnicas como resumir historicos longos, buscar so os trechos relevantes (RAG), guardar notas em memoria externa e usar prompt caching para reaproveitar partes fixas do contexto.
 
+
+## Por que esta em alta agora
+
+Com agentes que rodam por horas e acumulam muita informacao, o gargalo deixou de ser 'escrever o prompt perfeito' e passou a ser gerenciar o contexto ao longo de toda a tarefa. O termo context engineering ganhou forca justamente como evolucao do prompt engineering nessa nova era de agentes.
+
