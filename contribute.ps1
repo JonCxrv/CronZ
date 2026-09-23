@@ -278,6 +278,14 @@ if (Test-Path $StateFile) {
 $numCommits = Get-Random -Minimum 1 -Maximum 5  # 1 a 4
 Write-Output "Tentando fazer $numCommits commit(s) de conteudo..."
 
+# Cada execucao vira um PR: os commits vao para uma branch propria, que e
+# mergeada na main pelo gh no final.
+git checkout main --quiet
+git pull origin main --quiet
+$branch = "estudo/" + (Get-Date -Format "yyyy-MM-dd-HHmmss")
+git checkout -b $branch --quiet
+$prTitles = @()
+
 $done = 0
 for ($i = 0; $i -lt $numCommits; $i++) {
 
@@ -309,12 +317,26 @@ for ($i = 0; $i -lt $numCommits; $i++) {
     git commit -m "estudo(IA): $($topic.Title) - $($section.Heading)" --quiet
 
     $done++
+    $prTitles += "$($topic.Title) - $($section.Heading)"
     Write-Output "  [$done/$numCommits] $($topic.Title) - $($section.Heading)"
 }
 
 if ($done -gt 0) {
-    git push origin main
-    Write-Output "Concluido: $done commit(s) enviados para o GitHub."
+    git push -u origin $branch --quiet
+    if ($LASTEXITCODE -ne 0) { throw "Falha no push da branch $branch." }
+
+    $prBody = "Secoes estudadas:`n`n" + (($prTitles | ForEach-Object { "- $_" }) -join "`n")
+    gh pr create --base main --head $branch --title "estudo(IA): $(Get-Date -Format 'yyyy-MM-dd')" --body $prBody
+    if ($LASTEXITCODE -ne 0) { throw "Falha ao abrir o PR da branch $branch." }
+
+    gh pr merge $branch --merge --delete-branch
+    if ($LASTEXITCODE -ne 0) { throw "PR aberto, mas o merge falhou -- confira no GitHub." }
+
+    git checkout main --quiet
+    git pull origin main --quiet
+    Write-Output "Concluido: PR com $done commit(s) aberto e mergeado na main."
 } else {
+    git checkout main --quiet
+    git branch -D $branch --quiet
     Write-Output "Nenhum commit feito."
 }

@@ -9,9 +9,13 @@ projeto de codigo de verdade -- nao adicione testes, CI, linting, etc.
 `contribute.ps1` e o unico artefato executavel. Cada execucao:
 
 1. Sorteia um numero de 1 a 4 (`Get-Random -Minimum 1 -Maximum 5`).
-2. Faz esse numero de commits, cada um adicionando **uma secao de conteudo**
-   sobre um topico de IA em `estudos-ia/<NN-slug>.md`.
-3. Da `git push origin main` no final.
+2. Cria uma branch `estudo/<data-hora>` a partir da `main` e faz esse numero
+   de commits nela, cada um adicionando **uma secao de conteudo** sobre um
+   topico de IA em `estudos-ia/<NN-slug>.md`.
+3. Da push da branch, abre um PR com `gh pr create` e mergeia com
+   `gh pr merge --merge --delete-branch` (merge commit, nao squash, pra cada
+   commit continuar contando no grafico). Volta pra `main` atualizada no fim.
+   Ou seja: cada execucao = 1 PR + N commits no perfil.
 
 O conteudo NAO e gerado dinamicamente -- esta tudo escrito a mao dentro do
 array `$Topics` no proprio script. Cada topico tem 3 secoes fixas:
