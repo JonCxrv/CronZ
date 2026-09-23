@@ -1,32 +1,320 @@
-# Gera de 1 a 4 commits aleatorios no repo e envia (push) para o GitHub.
-# Uso: clique com o botao direito > "Executar com PowerShell", ou rode `.\contribute.ps1` no terminal.
+# Gera de 1 a 4 commits por execucao. Cada commit adiciona um pedaco de conteudo de
+# estudo sobre IA (termos e temas em alta) num arquivo dentro de estudos-ia/, indo
+# fundo aos poucos em cada assunto antes de passar para o proximo.
+# Uso: .\contribute.ps1  (ou clique direito > Executar com PowerShell)
 
 $ErrorActionPreference = "Stop"
 
-# Garante PATH atualizado (necessario logo apos instalar o git via winget)
 $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
 
 Set-Location $PSScriptRoot
 
-$logFile = "activity.log"
-if (-not (Test-Path $logFile)) {
-    New-Item -ItemType File -Path $logFile | Out-Null
+$ContentDir = "estudos-ia"
+$StateFile  = ".study-state.json"
+
+if (-not (Test-Path $ContentDir)) {
+    New-Item -ItemType Directory -Path $ContentDir | Out-Null
 }
 
-$numCommits = Get-Random -Minimum 1 -Maximum 5  # 1 a 4 (Maximum é exclusivo)
-Write-Output "Fazendo $numCommits commit(s)..."
+# ---------------------------------------------------------------------------
+# Fila de topicos. Cada topico vira um arquivo; cada "Section" vira um commit.
+# Quando um topico acaba, o proximo comeca automaticamente.
+# ---------------------------------------------------------------------------
+$Topics = @(
+    [PSCustomObject]@{
+        File = "01-llms.md"
+        Title = "LLMs (Large Language Models)"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que sao"; Body = "LLMs (Modelos de Linguagem Grandes) sao redes neurais treinadas em quantidades massivas de texto para prever a proxima palavra (ou token) de uma sequencia. Esse objetivo aparentemente simples, aplicado em escala de trilhoes de tokens de treino, faz emergir capacidades como responder perguntas, escrever codigo, resumir textos e raciocinar sobre problemas, sem terem sido explicitamente programadas para cada uma dessas tarefas.`n`nExemplos atuais: a familia GPT (OpenAI), Claude (Anthropic), Gemini (Google) e modelos abertos como Llama (Meta) e DeepSeek." },
+            [PSCustomObject]@{ Heading = "Como funcionam"; Body = "No nucleo de praticamente todo LLM atual esta a arquitetura Transformer, que processa o texto inteiro de uma vez usando um mecanismo chamado atencao (attention) para decidir quais partes do texto sao relevantes entre si. O treino acontece em duas grandes fases: pre-treino, onde o modelo aprende padroes gerais da linguagem lendo bilhoes de paginas de texto, e pos-treino (fine-tuning, RLHF), onde e ajustado para seguir instrucoes e se comportar de forma util e segura." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Desde o lancamento do ChatGPT em 2022, os LLMs deixaram de ser um topico de pesquisa academica para virar infraestrutura de produto: assistentes de codigo, atendimento ao cliente, pesquisa e automacao de tarefas. Em 2025-2026 a corrida evoluiu para modelos com raciocinio mais longo (thinking/reasoning), contextos maiores e integracao com ferramentas externas via agentes -- o LLM deixou de ser so um gerador de texto e passou a ser o motor de decisao de sistemas mais complexos." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "02-transformers.md"
+        Title = "Transformers e o Mecanismo de Atencao"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Transformer e a arquitetura de rede neural, apresentada em 2017 no paper 'Attention Is All You Need', que se tornou a base de praticamente todo modelo de IA generativa moderno, de LLMs a geradores de imagem. Sua principal inovacao foi eliminar a necessidade de processar sequencias passo a passo (como faziam as RNNs), permitindo processar uma frase inteira em paralelo." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "O coracao do Transformer e o mecanismo de self-attention: para cada token da entrada, o modelo calcula o quanto ele deve prestar atencao em todos os outros tokens da mesma sequencia, gerando uma representacao que ja incorpora contexto. Isso e feito atraves de tres vetores por token (Query, Key e Value), e multiplas 'cabecas' de atencao rodam em paralelo, cada uma capturando um tipo diferente de relacao entre palavras." },
+            [PSCustomObject]@{ Heading = "Por que importa hoje"; Body = "A capacidade de paralelizar o processamento foi o que permitiu treinar modelos em escalas antes impossiveis, usando milhares de GPUs simultaneamente -- e literalmente o que viabilizou a era dos LLMs. Hoje, variacoes da arquitetura original (atencao esparsa, sliding window attention, atencao linear) sao usadas para lidar com contextos cada vez maiores sem explodir o custo computacional, que cresce quadraticamente com o tamanho da sequencia na versao classica." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "03-rag.md"
+        Title = "RAG (Retrieval-Augmented Generation)"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "RAG e uma tecnica que combina um LLM com um sistema de busca externo: antes de gerar uma resposta, o sistema recupera documentos relevantes de uma base de conhecimento (geralmente um banco vetorial) e os injeta no contexto do modelo. Em vez de depender so do que o modelo memorizou durante o treino, ele passa a responder com base em informacao buscada em tempo real." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "O fluxo tipico tem tres etapas: (1) o texto da base de conhecimento e dividido em pedacos (chunks) e transformado em embeddings; (2) quando chega uma pergunta, ela tambem vira um embedding e o sistema busca os chunks mais similares em um banco vetorial; (3) esses trechos recuperados sao inseridos no prompt enviado ao LLM, que gera a resposta final usando essas informacoes como referencia." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "RAG resolve dois problemas centrais dos LLMs: informacao desatualizada e alucinacao sobre dados especificos de uma empresa ou dominio. E a arquitetura padrao por tras da maioria dos chatbots corporativos e assistentes que respondem sobre documentacao interna, e continua evoluindo com re-ranking, RAG agentic (o modelo decide quando e o que buscar) e busca hibrida (vetorial + palavra-chave)." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "04-agentes-de-ia.md"
+        Title = "Agentes de IA (AI Agents)"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que sao"; Body = "Um agente de IA e um sistema onde um LLM nao apenas responde uma pergunta, mas planeja e executa uma sequencia de acoes -- chamando ferramentas, consultando APIs, escrevendo e rodando codigo, navegando na web -- para atingir um objetivo, muitas vezes com pouca ou nenhuma supervisao humana a cada passo. E a diferenca entre 'perguntar algo a um chatbot' e 'pedir para um assistente resolver uma tarefa inteira sozinho'." },
+            [PSCustomObject]@{ Heading = "Como funcionam"; Body = "A maioria dos agentes segue um ciclo de raciocinio-acao-observacao: o modelo pensa sobre o proximo passo, escolhe e executa uma ferramenta (function calling), observa o resultado, e repete ate concluir a tarefa ou decidir que precisa de ajuda humana. Protocolos como function calling nativo dos modelos e, mais recentemente, o MCP (Model Context Protocol) padronizam como um agente descobre e usa ferramentas externas." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "2025-2026 e frequentemente chamado de 'o ano dos agentes': assistentes de codigo autonomos que editam multiplos arquivos e corrigem erros sozinhos, agentes que operam navegadores e computadores (computer use), e agentes de atendimento que resolvem tickets de ponta a ponta viraram produtos reais. O desafio atual da industria e torna-los confiaveis o suficiente para operar com mais autonomia, com bom tratamento de erros e limites claros de seguranca." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "05-mcp.md"
+        Title = "MCP (Model Context Protocol)"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "MCP e um protocolo aberto, criado pela Anthropic e adotado por varias empresas do setor, que padroniza como modelos de IA se conectam a fontes de dados e ferramentas externas -- bancos de dados, sistemas de arquivos, APIs de terceiros, apps como Slack ou Figma. Antes do MCP, cada integracao entre um LLM e uma ferramenta externa exigia codigo sob medida; o protocolo cria uma interface comum, parecida com o papel que o USB-C tem para conectar dispositivos fisicos." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "MCP define uma arquitetura cliente-servidor: um 'servidor MCP' expoe recursos (dados), ferramentas (acoes que o modelo pode executar) e prompts de um sistema especifico; um 'cliente MCP' (como um assistente de IA) se conecta a esse servidor e descobre dinamicamente o que esta disponivel, sem precisar de integracao hardcoded para cada servico. A comunicacao segue um formato padronizado sobre JSON-RPC." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Desde seu lancamento no fim de 2024, o MCP foi adotado rapidamente por grandes players do setor, tornando-se um padrao de fato para conectar assistentes de IA a ferramentas reais de trabalho. Reduz drasticamente o esforco de integracao -- hoje existem centenas de servidores MCP prontos (GitHub, bancos de dados, Google Drive, Figma etc.) que qualquer cliente compativel pode usar imediatamente." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "06-modelos-de-raciocinio.md"
+        Title = "Modelos de Raciocinio e Test-Time Compute"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Modelos de raciocinio (reasoning models) sao LLMs treinados para 'pensar antes de responder': em vez de gerar a resposta final direto, eles produzem uma cadeia de raciocinio intermediaria -- decompondo o problema, testando abordagens, verificando os proprios passos -- antes de chegar a conclusao. Exemplos incluem os modelos da serie 'o' da OpenAI e os modos de 'extended thinking' de modelos como o Claude." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "A ideia central e 'test-time compute' (ou 'inference-time scaling'): em vez de so investir mais poder computacional no treino, deixa-se o proprio modelo usar mais tempo e tokens durante a inferencia para raciocinar sobre um problema dificil, parecido com uma pessoa que para para pensar antes de responder algo complexo. Esses modelos costumam ser treinados com reinforcement learning sobre a qualidade do processo de raciocinio, nao so da resposta final." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Essa abordagem trouxe ganhos expressivos em tarefas de logica, matematica e programacao -- areas onde LLMs tradicionais historicamente erravam por 'responder rapido demais'. A tendencia atual da industria e oferecer um controle de 'quanto o modelo deve pensar', deixando o usuario trocar velocidade e custo por mais precisao em tarefas dificeis." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "07-fine-tuning-lora.md"
+        Title = "Fine-tuning, LoRA e QLoRA"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Fine-tuning e o processo de continuar o treino de um modelo ja pre-treinado usando um conjunto de dados menor e especifico, ajustando seus pesos para se especializar em uma tarefa, dominio ou estilo -- por exemplo, ensinar um LLM generico a responder no tom de uma marca ou a ser melhor em uma linguagem de programacao de nicho." },
+            [PSCustomObject]@{ Heading = "Como funciona (LoRA)"; Body = "Ajustar todos os bilhoes de parametros de um modelo grande e caro e exige muita memoria. LoRA (Low-Rank Adaptation) resolve isso congelando os pesos originais do modelo e treinando apenas pequenas matrizes adicionais de baixa dimensao, reduzindo drasticamente o numero de parametros treinaveis. QLoRA vai alem, aplicando isso sobre um modelo quantizado, permitindo fazer fine-tuning de modelos grandes ate em uma unica GPU de consumidor." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "LoRA e QLoRA democratizaram o fine-tuning: o que antes exigia clusters de GPUs corporativos hoje pode ser feito por um desenvolvedor individual ou uma startup pequena em hardware acessivel. Isso alimentou uma explosao de modelos especializados derivados de modelos-base abertos, e e uma das razoes por tras do crescimento acelerado do ecossistema de modelos open-weight." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "08-embeddings-e-bancos-vetoriais.md"
+        Title = "Embeddings e Bancos Vetoriais"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que sao"; Body = "Embeddings sao representacoes numericas (vetores) de textos, imagens ou outros dados, geradas por um modelo de forma que itens com significado parecido fiquem proximos entre si nesse espaco vetorial. As frases 'cachorro correndo no parque' e 'cao brincando ao ar livre' teriam embeddings proximos, mesmo sem compartilhar palavras exatas." },
+            [PSCustomObject]@{ Heading = "Como funcionam os bancos vetoriais"; Body = "Bancos vetoriais (Pinecone, Weaviate, Qdrant, ou extensoes como o pgvector do Postgres) sao otimizados para armazenar milhoes de embeddings e responder rapidamente 'quais vetores sao mais parecidos com este aqui'. Em vez de comparar um vetor contra todos os outros um por um, eles usam indices aproximados como HNSW (Hierarchical Navigable Small World), trocando um pouco de precisao por velocidade de busca muito maior." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Embeddings e bancos vetoriais sao a espinha dorsal de RAG, busca semantica e recomendacao modernos. Com o crescimento de agentes de IA que precisam de memoria de longo prazo, bancos vetoriais tambem passaram a ser usados como uma especie de memoria persistente para assistentes, guardando conversas e fatos passados como embeddings pesquisaveis." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "09-modelos-multimodais.md"
+        Title = "Modelos Multimodais"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que sao"; Body = "Modelos multimodais sao sistemas de IA capazes de entender e/ou gerar mais de um tipo de dado -- texto, imagem, audio, video -- dentro do mesmo modelo, em vez de precisar de um sistema separado para cada tipo de midia. Modelos como GPT-4o, Gemini e Claude ja processam texto e imagem nativamente na mesma conversa; outros, como Sora e Veo, geram video a partir de texto." },
+            [PSCustomObject]@{ Heading = "Como funcionam"; Body = "A estrategia comum e converter cada tipo de dado em uma representacao compartilhada que o Transformer consegue processar: uma imagem e dividida em patches que viram uma sequencia de tokens, parecido com palavras de um texto. Modelos de geracao de imagem e video geralmente combinam essa base com tecnicas de difusao (diffusion), que aprendem a transformar ruido aleatorio em uma imagem coerente passo a passo." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "A multimodalidade esta deixando de ser um recurso extra para virar expectativa padrao: assistentes que analisam uma captura de tela, leem um grafico em PDF ou descrevem o que veem em uma camera ao vivo ja sao comuns. Na geracao, video e audio por IA saltaram de qualidade nos ultimos anos, abrindo oportunidades criativas e tambem debates sobre deepfakes e autenticidade de conteudo." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "10-mixture-of-experts.md"
+        Title = "Mixture of Experts (MoE)"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Mixture of Experts e uma arquitetura onde, em vez de um unico bloco denso de rede neural processar toda entrada, o modelo e dividido em varios 'especialistas' (subredes menores), e apenas alguns deles sao ativados para processar cada token, escolhidos por um componente chamado roteador (router)." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "Um modelo MoE pode ter, por exemplo, 8 ou mais especialistas em cada camada, mas o roteador ativa so 2 deles para cada token processado. Isso significa que o modelo pode ter um numero total de parametros gigantesco, mas o custo computacional de cada inferencia corresponde so a fracao de parametros realmente ativados, nao ao total." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "MoE se tornou a arquitetura escolhida por varios dos modelos de ponta mais recentes porque resolve um dilema antigo: como crescer a capacidade do modelo sem fazer o custo de rodar cada consulta explodir junto. E uma peca chave para entender por que alguns modelos conseguem ser simultaneamente muito capazes e relativamente baratos e rapidos de usar no dia a dia." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "11-tokenizacao.md"
+        Title = "Tokenizacao e Tokens"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Token e a unidade basica de texto que um LLM le e gera -- pode ser uma palavra inteira, um pedaco de palavra ou ate um unico caractere. Tokenizacao e o processo de quebrar o texto nessas unidades antes de entrega-lo ao modelo. Em ingles, um token equivale em media a uns 4 caracteres; em portugues, costuma render um pouco menos texto por token." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "A tecnica mais usada e o BPE (Byte Pair Encoding): comeca-se com caracteres individuais e, olhando um grande corpus de texto, vai-se juntando os pares mais frequentes em novos tokens, ate formar um vocabulario de dezenas ou centenas de milhares de itens. Cada token vira um numero (ID), e e esse numero que o modelo realmente processa, via uma tabela de embeddings." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Tudo em LLM e medido em tokens: preco das APIs, tamanho da janela de contexto, velocidade de geracao. Entender tokenizacao explica varias esquisitices dos modelos -- como errar ao contar letras de uma palavra -- e por que idiomas diferentes do ingles podem sair mais caros. Tambem ha pesquisa ativa em modelos que dispensam tokenizador e trabalham direto com bytes." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "12-quantizacao.md"
+        Title = "Quantizacao de Modelos"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Quantizacao e a tecnica de reduzir a precisao numerica dos pesos de um modelo -- por exemplo, de numeros de 16 bits para 8 ou ate 4 bits. O resultado e um modelo bem menor e mais rapido, com uma perda de qualidade que, feita com cuidado, costuma ser pequena." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "Os pesos originais sao mapeados para um conjunto menor de valores possiveis, usando fatores de escala calculados por bloco de pesos para preservar o maximo de informacao. Metodos como GPTQ, AWQ e os formatos GGUF (usados pelo llama.cpp) aplicam isso depois do treino; ja o treino com baixa precisao (FP8, FP4) leva a ideia para dentro do proprio treinamento." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "E a quantizacao que permite rodar modelos de bilhoes de parametros num notebook ou celular, com ferramentas como Ollama e LM Studio. Nos data centers, ela reduz custo de inferencia e aumenta o numero de usuarios atendidos por GPU -- e as GPUs mais novas ja trazem suporte nativo a formatos de 4 e 8 bits." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "13-alucinacao.md"
+        Title = "Alucinacao em LLMs"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Alucinacao e quando um modelo de IA gera uma informacao falsa ou inventada, mas apresentada com total confianca -- uma citacao que nao existe, uma funcao de biblioteca inventada, um dado historico errado. Nao e 'mentira' intencional: e um efeito colateral de como os modelos geram texto." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "Um LLM gera o texto mais provavel dado o contexto, e nao consulta um banco de fatos verificados. Quando o modelo nao 'sabe' algo, a continuacao mais plausivel pode ser uma resposta inventada que soa correta. O treino tambem pode reforcar isso, ao premiar respostas confiantes em vez de admitir incerteza." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Conforme a IA entra em areas sensiveis (juridico, saude, codigo em producao), alucinacao virou o principal obstaculo de confiabilidade. As defesas atuais combinam RAG com citacao de fontes, modelos treinados para dizer 'nao sei', verificacao por ferramentas externas e avaliacao automatica de factualidade." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "14-context-engineering.md"
+        Title = "Janela de Contexto e Context Engineering"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Janela de contexto e a quantidade maxima de tokens que um modelo consegue considerar de uma vez -- prompt, historico, documentos e resposta somados. Context engineering e a pratica de decidir com cuidado o que entra nessa janela: quais instrucoes, exemplos, documentos e resultados de ferramentas o modelo deve ver para fazer bem a tarefa." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "Mesmo com janelas de centenas de milhares ou milhoes de tokens, encher o contexto de tudo piora a qualidade (o modelo se perde, o chamado 'context rot') e aumenta o custo. Por isso se usam tecnicas como resumir historicos longos, buscar so os trechos relevantes (RAG), guardar notas em memoria externa e usar prompt caching para reaproveitar partes fixas do contexto." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Com agentes que rodam por horas e acumulam muita informacao, o gargalo deixou de ser 'escrever o prompt perfeito' e passou a ser gerenciar o contexto ao longo de toda a tarefa. O termo context engineering ganhou forca justamente como evolucao do prompt engineering nessa nova era de agentes." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "15-tool-calling.md"
+        Title = "Tool Calling (Function Calling)"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Tool calling e a capacidade de um LLM de, em vez de so responder em texto, pedir para executar uma ferramenta: buscar na web, consultar um banco, chamar uma API, rodar codigo. E a peca basica que transforma um chatbot em agente -- e o que o MCP padroniza por baixo." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "A aplicacao envia ao modelo, junto com o prompt, a lista de ferramentas disponiveis com nome, descricao e um JSON Schema dos parametros. Quando acha util, o modelo responde com uma chamada estruturada (ex: get_weather com city='Recife'); quem executa de fato e a aplicacao, que devolve o resultado para o modelo continuar. O modelo nunca roda nada sozinho -- ele so decide o que chamar e com quais argumentos." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Todo agente moderno depende de tool calling bem feito, e os modelos ficaram muito melhores em escolher a ferramenta certa, encadear varias chamadas e ate chamar ferramentas em paralelo. A qualidade das descricoes e dos schemas das ferramentas virou quase tao importante quanto o prompt." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "16-rlhf-e-dpo.md"
+        Title = "RLHF, DPO e Alinhamento"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "RLHF (Reinforcement Learning from Human Feedback) e a tecnica que transformou modelos que so completavam texto em assistentes uteis: o modelo aprende com avaliacoes humanas sobre quais respostas sao melhores. DPO (Direct Preference Optimization) e uma alternativa mais simples que chega a um resultado parecido. Ambas fazem parte do que se chama alinhamento." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "No RLHF, pessoas comparam pares de respostas; com isso se treina um modelo de recompensa, que depois guia o LLM via reinforcement learning. O DPO pula o modelo de recompensa e ajusta o LLM diretamente a partir das preferencias. Variacoes usam feedback de outra IA (RLAIF) ou um conjunto de principios escritos, como na Constitutional AI da Anthropic." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "O pos-treino virou onde boa parte da diferenca entre modelos e decidida: personalidade, seguranca, capacidade de seguir instrucoes. Alem disso, reinforcement learning com recompensas verificaveis (codigo que passa nos testes, matematica com resposta certa) e o motor por tras dos modelos de raciocinio atuais." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "17-mcp-na-pratica.md"
+        Title = "MCP na Pratica: Primitivas e Transportes"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Alem da ideia geral de 'USB-C da IA', o MCP tem pecas bem definidas. Ha tres papeis: o host (o app de IA, como um assistente de codigo ou chat), o cliente (a conexao que o host abre com cada servidor) e o servidor (quem expoe um sistema). E o servidor oferece tres primitivas: tools (acoes), resources (dados para leitura) e prompts (modelos de instrucao prontos)." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "A conexao usa um de dois transportes: stdio, quando o servidor roda como processo local na maquina do usuario, ou Streamable HTTP, quando o servidor esta remoto na web. Ao conectar, cliente e servidor negociam capacidades e o cliente lista as tools, resources e prompts disponiveis. O protocolo tambem permite o caminho inverso: o servidor pode pedir ao cliente uma geracao do modelo (sampling) ou uma informacao ao usuario (elicitation)." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "O movimento atual e dos servidores locais para servidores MCP remotos, oferecidos pelas proprias empresas (GitHub, Notion, Figma, Stripe etc.) e conectados com um clique. Entender primitivas e transportes e o que separa 'usar' MCP de conseguir construir um servidor proprio para expor os sistemas da sua empresa." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "18-slms.md"
+        Title = "SLMs (Small Language Models)"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "SLMs sao modelos de linguagem pequenos, geralmente com poucos bilhoes de parametros (ou menos), pensados para rodar rapido e barato -- inclusive direto no celular ou notebook, sem nuvem. Exemplos sao as familias Phi (Microsoft), Gemma (Google) e as versoes menores de Llama e Qwen." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "O segredo esta menos na arquitetura e mais nos dados: SLMs sao treinados com dados muito bem filtrados e com dados sinteticos gerados por modelos maiores, alem de destilacao (o modelo pequeno aprende a imitar um modelo grande). Somando quantizacao, cabem em poucos gigabytes de memoria." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Nem toda tarefa precisa do maior modelo do mercado: classificar textos, extrair dados ou rodar um assistente offline funcionam bem com SLMs, a uma fracao do custo e com mais privacidade. Em sistemas de agentes, e comum usar um modelo grande para planejar e varios pequenos para executar tarefas simples." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "19-a2a.md"
+        Title = "A2A (Agent2Agent Protocol)"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "A2A e um protocolo aberto, lancado pelo Google em 2025 e depois levado para a Linux Foundation, para que agentes de IA de fornecedores diferentes conversem entre si. Se o MCP conecta um agente a ferramentas e dados, o A2A conecta um agente a outro agente." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "Cada agente publica um 'Agent Card', um JSON que descreve quem ele e, o que sabe fazer e como se autenticar. Um agente cliente le esse cartao e delega uma tarefa ao agente remoto via HTTP; a tarefa tem ciclo de vida proprio (em andamento, aguardando input, concluida) e pode devolver mensagens e arquivos ao longo do caminho, inclusive para tarefas que levam horas." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Empresas estao montando varios agentes especializados (compras, RH, suporte), muitas vezes de plataformas diferentes, e precisam que eles colaborem sem integracao sob medida. MCP e A2A sao vistos como complementares e formam, juntos, a base da 'internet de agentes' que a industria tenta padronizar." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "20-destilacao.md"
+        Title = "Destilacao de Modelos"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Destilacao (knowledge distillation) e a tecnica de treinar um modelo menor, o 'aluno', para reproduzir o comportamento de um modelo maior e mais capaz, o 'professor'. O objetivo e manter boa parte da qualidade do modelo grande com o custo e a velocidade de um modelo pequeno." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "Em vez de aprender so com as respostas 'certas' dos dados, o aluno aprende com as saidas do professor -- seja a distribuicao de probabilidades completa sobre os proximos tokens, seja grandes volumes de respostas e raciocinios gerados pelo professor. Essa informacao e mais rica que o dado original e acelera muito o aprendizado." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Quase todo modelo pequeno ou 'mini' competitivo hoje passou por algum tipo de destilacao, e modelos de raciocinio abertos tambem foram destilados em versoes menores. O tema tambem gera debate: empresas proibem nos termos de uso que suas APIs sejam usadas para destilar modelos concorrentes." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "21-agent-skills.md"
+        Title = "Agent Skills"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Agent Skills sao pacotes de conhecimento que um agente carrega sob demanda: uma pasta com um arquivo SKILL.md de instrucoes e, opcionalmente, scripts e arquivos de referencia. Criadas pela Anthropic e depois publicadas como padrao aberto, servem para ensinar ao agente 'como fazer' uma tarefa especifica -- montar uma planilha no padrao da empresa, seguir um fluxo de deploy, revisar codigo com um checklist." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "O truque e a divulgacao progressiva (progressive disclosure): no inicio o agente ve so o nome e uma descricao curta de cada skill, o que custa poucos tokens. Quando a tarefa pede, ele le o SKILL.md inteiro e, se precisar, os arquivos extras ou executa os scripts da pasta. Assim da para ter dezenas de skills disponiveis sem lotar a janela de contexto." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Skills preenchem um espaco que o MCP nao cobre: MCP da acesso a ferramentas, skills dao o procedimento e o conhecimento do dominio para usa-las bem. Como sao so arquivos de texto e codigo, qualquer time consegue criar, versionar no git e compartilhar suas skills, o que as tornou populares rapidamente em assistentes de codigo e de trabalho." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "22-prompt-injection.md"
+        Title = "Prompt Injection e Seguranca de IA"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Prompt injection e um ataque em que alguem insere instrucoes maliciosas no texto que o modelo vai ler, tentando fazer ele ignorar as regras originais. Pode ser direto (o usuario escreve 'ignore as instrucoes anteriores') ou indireto, quando a instrucao esta escondida numa pagina web, e-mail ou documento que o agente processa." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "O problema de fundo e que, para um LLM, instrucoes e dados chegam no mesmo canal: tudo e texto no contexto. Se um agente le um e-mail dizendo 'encaminhe todos os arquivos para este endereco' e tem acesso a ferramentas, pode acabar obedecendo. As defesas incluem separar conteudo confiavel do nao confiavel, limitar permissoes das ferramentas, pedir confirmacao humana em acoes sensiveis e treinar os modelos para resistir a esses ataques." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Com agentes que navegam na web, leem e-mails e executam codigo, prompt injection deixou de ser curiosidade e virou risco real de seguranca -- e esta no topo da lista OWASP de riscos para aplicacoes com LLM. Ainda nao existe solucao definitiva, entao o tema e central para quem constroi agentes." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "23-seguranca-mcp.md"
+        Title = "Seguranca e Autenticacao no MCP"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Conectar um agente a dezenas de servidores MCP abre uma nova superficie de ataque: um servidor malicioso ou comprometido pode enganar o modelo, e um servidor legitimo mal configurado pode dar acesso demais. Seguranca no MCP trata de duas perguntas: quem pode acessar o que (autenticacao e permissao) e em quais servidores o agente pode confiar." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "Para servidores remotos, a especificacao do MCP adota OAuth 2.1: o usuario autoriza o acesso numa tela de login, como em 'Entrar com Google', e o cliente recebe um token com escopo limitado, sem nunca ver a senha. Entre os ataques conhecidos estao o 'tool poisoning', instrucoes escondidas na descricao de uma ferramenta, e o 'rug pull', quando um servidor muda o comportamento das ferramentas depois de aprovado. As defesas incluem usar so servidores confiaveis, dar o minimo de permissao e pedir confirmacao humana para acoes sensiveis." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Com a adocao em massa do MCP, pesquisadores passaram a encontrar servidores vulneraveis e ataques reais que exploram exatamente essa confianca entre agente e ferramenta. Surgiram registros oficiais de servidores, gateways corporativos que controlam quais servidores cada funcionario pode usar e ferramentas que auditam servidores antes da instalacao." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "24-evals-e-benchmarks.md"
+        Title = "Evals e Benchmarks de IA"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Evals sao testes sistematicos para medir o quao bem um modelo ou sistema de IA faz uma tarefa. Benchmarks sao evals publicos e padronizados, usados para comparar modelos -- como MMLU (conhecimento geral), SWE-bench (resolver issues reais de codigo) e GPQA (perguntas cientificas dificeis)." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "Um eval reune um conjunto de entradas com a saida esperada (ou um criterio de correcao) e roda o modelo em todas, gerando uma nota. Quando a resposta nao e objetiva, usa-se outro LLM como avaliador ('LLM-as-a-judge') seguindo um roteiro de criterios. Em produto, times mantem evals proprios com casos reais do seu dominio para detectar regressoes a cada mudanca." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Os modelos evoluem tao rapido que benchmarks antigos 'saturam' (todos tiram quase 100%) e ha o risco de contaminacao, quando as perguntas vazam para os dados de treino. Por isso surgem benchmarks cada vez mais dificeis e focados em tarefas longas de agentes -- e 'escrever bons evals' virou uma das habilidades mais valorizadas em quem constroi com IA." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "25-computer-use.md"
+        Title = "Computer Use e Agentes de Navegador"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Computer use e a capacidade de um modelo operar um computador como uma pessoa: ver a tela, mover o mouse, clicar e digitar. Agentes de navegador sao a versao focada na web, que abrem sites, preenchem formularios e navegam entre paginas para completar uma tarefa." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "O agente trabalha em ciclo: recebe um screenshot da tela (ou a estrutura da pagina, no caso do navegador), decide a proxima acao, como 'clicar no botao Entrar' ou 'digitar o CEP', executa via ferramentas e recebe um novo screenshot para conferir o resultado. Modelos multimodais com boa leitura de interface sao o que torna isso possivel." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Boa parte dos sistemas do mundo real nao tem API nem servidor MCP -- so uma interface feita para humanos. Computer use permite automatizar esses sistemas legados, e os principais laboratorios lancaram agentes de navegador como produto. Ainda e mais lento e menos confiavel que uma API, e o risco de prompt injection vindo das paginas visitadas e grande." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "26-dados-sinteticos.md"
+        Title = "Dados Sinteticos"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Dados sinteticos sao dados de treino gerados por modelos de IA, em vez de coletados do mundo real -- por exemplo, exercicios de matematica com solucao, conversas simuladas ou codigo com testes, todos criados por um LLM. Sao usados para treinar ou ajustar outros modelos (ou o proprio)." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "Um modelo forte gera grandes volumes de exemplos seguindo instrucoes e variacoes, e depois vem a etapa mais importante: filtrar. Respostas sao verificadas automaticamente (rodando o codigo, conferindo a conta) ou avaliadas por outro modelo, e so os exemplos bons entram no treino. Sem esse filtro, o risco e o 'model collapse', quando o modelo degrada ao aprender com os proprios erros." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "O estoque de texto humano de qualidade na internet e finito e ja foi quase todo usado nos treinos. Dados sinteticos viraram a principal forma de continuar escalando, principalmente em areas verificaveis como codigo e matematica, e estao por tras de muitos avancos recentes em SLMs e modelos de raciocinio." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "27-multiagentes.md"
+        Title = "Sistemas Multiagentes e Subagentes"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Um sistema multiagente divide uma tarefa grande entre varios agentes de IA, cada um com seu papel, em vez de deixar um unico agente fazer tudo. O padrao mais comum e o orquestrador com subagentes: um agente principal planeja e delega partes do trabalho para agentes auxiliares." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "O orquestrador quebra o problema (ex: 'pesquise estes cinco concorrentes') e dispara subagentes, muitas vezes em paralelo, cada um com instrucoes, ferramentas e janela de contexto proprias. Cada subagente faz sua parte e devolve so um resumo, e o orquestrador junta tudo na resposta final. Isso isola o contexto: o orquestrador nao fica lotado com cada detalhe que os subagentes leram." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Pesquisas profundas, revisoes de codigo e tarefas longas de agentes ficaram bem melhores com esse padrao, e frameworks e assistentes de codigo passaram a oferecer subagentes nativamente. O contraponto e o custo: varios agentes consomem muito mais tokens, entao a pergunta pratica e quando a divisao compensa e quando um agente so resolve." }
+        )
+    }
+)
 
-for ($i = 1; $i -le $numCommits; $i++) {
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $randomBit = -join ((48..57) + (97..122) | Get-Random -Count 8 | ForEach-Object { [char]$_ })
-    Add-Content -Path $logFile -Value "$timestamp - $randomBit"
-
-    git add $logFile
-    git commit -m "update $timestamp" --quiet
-
-    Write-Output "  [$i/$numCommits] commit criado"
+# ---------------------------------------------------------------------------
+# Estado: qual topico/secao vem a seguir
+# ---------------------------------------------------------------------------
+if (Test-Path $StateFile) {
+    $state = Get-Content $StateFile -Raw | ConvertFrom-Json
+} else {
+    $state = [PSCustomObject]@{ topicIndex = 0; sectionIndex = 0 }
 }
 
-git push origin main
+$numCommits = Get-Random -Minimum 1 -Maximum 5  # 1 a 4
+Write-Output "Tentando fazer $numCommits commit(s) de conteudo..."
 
-Write-Output "Concluido: $numCommits commit(s) enviados para o GitHub."
+$done = 0
+for ($i = 0; $i -lt $numCommits; $i++) {
+
+    if ($state.topicIndex -ge $Topics.Count) {
+        Write-Output "Fila de topicos esgotada -- peca para o Claude adicionar mais assuntos."
+        break
+    }
+
+    $topic   = $Topics[$state.topicIndex]
+    $section = $topic.Sections[$state.sectionIndex]
+    $filePath = Join-Path $ContentDir $topic.File
+
+    if ($state.sectionIndex -eq 0) {
+        $block = "# $($topic.Title)`n`n## $($section.Heading)`n`n$($section.Body)`n"
+        Set-Content -Path $filePath -Value $block -Encoding utf8
+    } else {
+        $block = "`n## $($section.Heading)`n`n$($section.Body)`n"
+        Add-Content -Path $filePath -Value $block -Encoding utf8
+    }
+
+    $state.sectionIndex++
+    if ($state.sectionIndex -ge $topic.Sections.Count) {
+        $state.topicIndex++
+        $state.sectionIndex = 0
+    }
+    $state | ConvertTo-Json | Set-Content -Path $StateFile -Encoding utf8
+
+    git add $filePath $StateFile
+    git commit -m "estudo(IA): $($topic.Title) - $($section.Heading)" --quiet
+
+    $done++
+    Write-Output "  [$done/$numCommits] $($topic.Title) - $($section.Heading)"
+}
+
+if ($done -gt 0) {
+    git push origin main
+    Write-Output "Concluido: $done commit(s) enviados para o GitHub."
+} else {
+    Write-Output "Nenhum commit feito."
+}
