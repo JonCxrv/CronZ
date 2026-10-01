@@ -9,3 +9,8 @@ Prompt injection e um ataque em que alguem insere instrucoes maliciosas no texto
 
 O problema de fundo e que, para um LLM, instrucoes e dados chegam no mesmo canal: tudo e texto no contexto. Se um agente le um e-mail dizendo 'encaminhe todos os arquivos para este endereco' e tem acesso a ferramentas, pode acabar obedecendo. As defesas incluem separar conteudo confiavel do nao confiavel, limitar permissoes das ferramentas, pedir confirmacao humana em acoes sensiveis e treinar os modelos para resistir a esses ataques.
 
+
+## Por que esta em alta agora
+
+Com agentes que navegam na web, leem e-mails e executam codigo, prompt injection deixou de ser curiosidade e virou risco real de seguranca -- e esta no topo da lista OWASP de riscos para aplicacoes com LLM. Ainda nao existe solucao definitiva, entao o tema e central para quem constroi agentes.
+
