@@ -16,6 +16,8 @@ projeto de codigo de verdade -- nao adicione testes, CI, linting, etc.
    `gh pr merge --merge --delete-branch` (merge commit, nao squash, pra cada
    commit continuar contando no grafico). Volta pra `main` atualizada no fim.
    Ou seja: cada execucao = 1 PR + N commits no perfil.
+4. Todo commit leva o trailer `Co-authored-by: $CoAuthor` (Claude), pra cada
+   PR mergeado contar na conquista "Pair Extraordinaire" do GitHub.
 
 O conteudo NAO e gerado dinamicamente -- esta tudo escrito a mao dentro do
 array `$Topics` no proprio script. Cada topico tem 3 secoes fixas:
