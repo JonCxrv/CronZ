@@ -401,6 +401,11 @@ if (Test-Path $StateFile) {
 } else {
     $state = [PSCustomObject]@{ topicIndex = 0; sectionIndex = 0 }
 }
+# Quantos PRs ja sairam com co-autor (meta: 16, pra conquista Pair Extraordinaire)
+if ($null -eq $state.coauthorPRs) {
+    $state | Add-Member -NotePropertyName coauthorPRs -NotePropertyValue 0
+}
+$CoauthorGoal = 16
 
 $numCommits = Get-Random -Minimum 1 -Maximum 5  # 1 a 4
 Write-Output "Tentando fazer $numCommits commit(s) de conteudo..."
@@ -438,6 +443,7 @@ for ($i = 0; $i -lt $numCommits; $i++) {
         $state.topicIndex++
         $state.sectionIndex = 0
     }
+    if ($done -eq 0) { $state.coauthorPRs++ }  # conta 1 vez por execucao/PR
     $state | ConvertTo-Json | Set-Content -Path $StateFile -Encoding utf8
 
     git add $filePath $StateFile
@@ -464,6 +470,13 @@ if ($done -gt 0) {
     git checkout main --quiet
     git pull origin main --quiet
     Write-Output "Concluido: PR com $done commit(s) aberto e mergeado na main."
+
+    Write-Output "PRs com co-autor: $($state.coauthorPRs)/$CoauthorGoal"
+    if ($state.coauthorPRs -eq $CoauthorGoal) {
+        Write-Output ""
+        Write-Output "*** Acabou de fazer $CoauthorGoal execucoes com co-autor! ***"
+        Write-Output "*** Verifique no seu perfil do GitHub se a conquista Pair Extraordinaire (bronze) veio. ***"
+    }
 } else {
     git checkout main --quiet
     git branch -D $branch --quiet

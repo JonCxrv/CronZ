@@ -18,6 +18,10 @@ projeto de codigo de verdade -- nao adicione testes, CI, linting, etc.
    Ou seja: cada execucao = 1 PR + N commits no perfil.
 4. Todo commit leva o trailer `Co-authored-by: $CoAuthor` (Claude), pra cada
    PR mergeado contar na conquista "Pair Extraordinaire" do GitHub.
+   `.study-state.json` guarda `coauthorPRs` (PRs com co-autor, contando a
+   partir do PR #18). Meta do usuario: 16. Ao chegar em 16 o script avisa;
+   se voce rodar o script e ver isso (ou o contador >= 16), avise o usuario:
+   "acabou de fazer 16 execucoes, verifique se a conquista veio".
 
 O conteudo NAO e gerado dinamicamente -- esta tudo escrito a mao dentro do
 array `$Topics` no proprio script. Cada topico tem 3 secoes fixas:
