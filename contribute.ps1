@@ -11,6 +11,7 @@ Set-Location $PSScriptRoot
 
 $ContentDir = "estudos-ia"
 $StateFile  = ".study-state.json"
+$CoAuthor   = "Claude <noreply@anthropic.com>"
 
 if (-not (Test-Path $ContentDir)) {
     New-Item -ItemType Directory -Path $ContentDir | Out-Null
@@ -263,6 +264,132 @@ $Topics = @(
             [PSCustomObject]@{ Heading = "Como funciona"; Body = "O orquestrador quebra o problema (ex: 'pesquise estes cinco concorrentes') e dispara subagentes, muitas vezes em paralelo, cada um com instrucoes, ferramentas e janela de contexto proprias. Cada subagente faz sua parte e devolve so um resumo, e o orquestrador junta tudo na resposta final. Isso isola o contexto: o orquestrador nao fica lotado com cada detalhe que os subagentes leram." },
             [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Pesquisas profundas, revisoes de codigo e tarefas longas de agentes ficaram bem melhores com esse padrao, e frameworks e assistentes de codigo passaram a oferecer subagentes nativamente. O contraponto e o custo: varios agentes consomem muito mais tokens, entao a pergunta pratica e quando a divisao compensa e quando um agente so resolve." }
         )
+    },
+    [PSCustomObject]@{
+        File = "28-prompt-caching.md"
+        Title = "Prompt Caching"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Prompt caching e a tecnica de reaproveitar o processamento de um trecho de prompt que se repete entre chamadas, como um system prompt longo, documentos ou definicoes de ferramentas. Em vez de o modelo reprocessar tudo do zero a cada requisicao, ele reutiliza o que ja calculou." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "O provedor guarda o estado interno (o KV cache) gerado para um prefixo do prompt por alguns minutos. Se a proxima chamada comeca exatamente com o mesmo prefixo, essa parte e lida do cache, mais barata e mais rapida. Por isso a regra pratica e colocar o conteudo fixo no inicio e o que muda (a pergunta do usuario) no fim." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Agentes mandam o mesmo contexto gigante dezenas de vezes por tarefa, e o cache pode cortar boa parte do custo e da latencia dessas chamadas. Virou um recurso padrao nas APIs dos grandes provedores e um item obrigatorio em qualquer conversa sobre custo de IA em producao." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "29-kv-cache.md"
+        Title = "KV Cache e Inferencia Eficiente"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "O KV cache e a memoria que um transformer guarda durante a geracao de texto: as chaves (keys) e valores (values) da atencao de todos os tokens anteriores. Sem ele, o modelo teria que recalcular a atencao sobre o texto inteiro a cada novo token gerado." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "A cada token gerado, o modelo calcula K e V so para esse token novo e os adiciona ao cache, reaproveitando o resto. O problema e que o cache cresce com o tamanho do contexto e com o numero de usuarios simultaneos, consumindo muita memoria de GPU. Tecnicas como PagedAttention (do vLLM) gerenciam essa memoria em blocos, como paginas de um sistema operacional." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Com janelas de contexto de centenas de milhares de tokens, o KV cache virou o principal gargalo da inferencia. Boa parte da inovacao recente em servidores de modelos (vLLM, SGLang) e em arquiteturas novas e justamente sobre comprimir, compartilhar ou reduzir esse cache." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "30-speculative-decoding.md"
+        Title = "Speculative Decoding"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Speculative decoding e uma tecnica para acelerar a geracao de texto de um LLM sem mudar o resultado. Um modelo pequeno e rapido 'chuta' os proximos tokens, e o modelo grande apenas confere esses chutes." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "O modelo rascunho gera, por exemplo, 5 tokens de uma vez. O modelo grande verifica os 5 numa unica passada em paralelo e aceita os que ele mesmo teria gerado, descartando a partir do primeiro erro. Como verificar em paralelo e muito mais barato que gerar token a token, quando os chutes acertam o ganho de velocidade chega a 2-3x." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Modelos de raciocinio geram textos enormes, e cada milissegundo por token pesa no custo e na experiencia do usuario. Variacoes como Medusa e EAGLE, que usam cabecas extras no proprio modelo em vez de um modelo separado, ja vem prontas nos principais servidores de inferencia." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "31-structured-outputs.md"
+        Title = "Structured Outputs"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Structured outputs e a capacidade de forcar um LLM a responder em um formato exato, normalmente um JSON que segue um schema definido. Em vez de pedir 'responda em JSON' e torcer, a saida e garantida como valida." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "A tecnica por tras e o constrained decoding: a cada passo da geracao, o sistema bloqueia os tokens que quebrariam o schema, deixando o modelo escolher so entre opcoes validas. O schema e convertido numa gramatica ou automato que diz, em cada ponto, quais caracteres podem vir a seguir." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Quando a saida de um LLM alimenta codigo (extracao de dados, chamadas de ferramenta, pipelines), um JSON quebrado derruba o sistema. As principais APIs passaram a oferecer modo estrito com schema, e bibliotecas como Outlines e Pydantic AI tornaram esse padrao a forma normal de integrar LLMs em software." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "32-llm-as-a-judge.md"
+        Title = "LLM-as-a-Judge"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "LLM-as-a-judge e usar um modelo de linguagem para avaliar respostas de outro modelo (ou dele mesmo). Ele substitui ou complementa avaliadores humanos em tarefas onde nao existe uma resposta exata para comparar, como qualidade de um resumo ou tom de um atendimento." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "O juiz recebe a pergunta, a resposta e um criterio claro (uma rubrica), e devolve uma nota ou um veredito, de preferencia com justificativa. Pode avaliar uma resposta isolada ou comparar duas e dizer qual e melhor. Os cuidados sao conhecidos: juizes tendem a preferir respostas mais longas, a primeira opcao apresentada e textos do proprio modelo, entao e preciso calibrar com algumas notas humanas." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Avaliar milhares de respostas a mao nao escala, e evals viraram parte do ciclo de desenvolvimento de qualquer produto com IA. LLM-as-a-judge e a forma mais pratica de rodar essas avaliacoes continuamente, e tambem e usado para gerar recompensas no treino de modelos." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "33-graphrag.md"
+        Title = "GraphRAG"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "GraphRAG e uma variacao de RAG que organiza o conhecimento em um grafo de entidades e relacoes, em vez de so pedacos de texto soltos num banco vetorial. Isso permite responder perguntas que exigem conectar informacoes espalhadas por varios documentos." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "Um LLM le os documentos e extrai entidades (pessoas, empresas, conceitos) e as relacoes entre elas, montando um grafo de conhecimento. Esse grafo e agrupado em comunidades, que recebem resumos. Na hora da pergunta, o sistema navega pelo grafo e pelos resumos, nao so pela similaridade de texto." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "O RAG classico falha em perguntas globais como 'quais os principais temas destes 500 documentos?', porque nenhum trecho isolado contem a resposta. GraphRAG, popularizado por um projeto aberto da Microsoft, ataca exatamente isso, e virou opcao comum em bases de conhecimento corporativas." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "34-memoria-de-agentes.md"
+        Title = "Memoria de Longo Prazo em Agentes"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Memoria de longo prazo e a capacidade de um agente de IA lembrar de informacoes entre conversas diferentes, como preferencias do usuario, decisoes passadas ou fatos de um projeto. Por padrao, um LLM nao lembra de nada: cada chamada comeca do zero." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "O agente salva fatos relevantes fora do modelo, em arquivos, bancos de dados ou bancos vetoriais, e recupera o que importa no inicio de cada nova tarefa, colocando no contexto. A parte dificil e decidir o que vale guardar, quando atualizar algo que mudou e quando esquecer informacao velha ou errada." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Assistentes e agentes de codigo passaram a oferecer memoria persistente, e isso muda a experiencia: o agente deixa de ser um estagiario que chega novo todo dia. Ferramentas como Mem0 e Letta e recursos de memoria nativos dos grandes assistentes transformaram isso numa area propria de engenharia." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "35-interpretabilidade-mecanicista.md"
+        Title = "Interpretabilidade Mecanicista"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Interpretabilidade mecanicista e a area que tenta entender o que acontece dentro de uma rede neural, como se fosse engenharia reversa de um programa. O objetivo e descobrir quais conceitos o modelo representa internamente e quais 'circuitos' ele usa para chegar numa resposta." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "Uma tecnica central sao os sparse autoencoders, que decompoem as ativacoes do modelo em 'features' interpretaveis, como uma que acende para codigo com bug ou para um lugar especifico. Com isso da para rastrear o caminho de um raciocinio e ate ligar ou desligar uma feature para ver como o comportamento muda." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Modelos estao sendo usados em decisoes importantes, e confiar numa caixa-preta e arriscado. Pesquisas recentes de laboratorios como a Anthropic mostraram milhoes de features em modelos de producao e tracaram circuitos reais de raciocinio, tornando a area uma das grandes apostas para seguranca de IA." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "36-modelos-de-difusao.md"
+        Title = "Modelos de Difusao"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Modelos de difusao sao a tecnologia por tras da maioria dos geradores de imagem e video atuais. Eles aprendem a criar dados novos partindo de puro ruido aleatorio e removendo esse ruido aos poucos ate surgir uma imagem coerente." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "No treino, o modelo ve imagens sendo corrompidas com ruido em varios niveis e aprende a prever e remover esse ruido. Na geracao, ele faz o caminho inverso em varias etapas, guiado pelo texto do prompt. Versoes modernas trabalham num espaco comprimido (latent diffusion) e usam transformers no lugar das redes antigas, os chamados Diffusion Transformers." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Geracao de video com qualidade quase cinematografica saiu do laboratorio e chegou aos produtos, puxada por modelos de difusao. Alem disso, ja existem LLMs de difusao que geram texto refinando varios tokens em paralelo, uma alternativa a geracao token a token que promete ser bem mais rapida." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "37-agentes-de-codigo.md"
+        Title = "Agentes de Codigo e Vibe Coding"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Agentes de codigo sao assistentes de IA que nao so sugerem trechos, mas executam tarefas inteiras de programacao: leem o repositorio, editam arquivos, rodam testes e comandos e corrigem os proprios erros. 'Vibe coding' e o termo para o estilo em que a pessoa descreve o que quer e deixa a IA escrever quase todo o codigo." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "O agente roda num loop: recebe a tarefa, explora o codigo com ferramentas de busca e leitura, faz alteracoes, executa testes ou o build, le os erros e tenta de novo ate terminar. Ele roda no terminal, na IDE ou na nuvem, e arquivos de instrucoes no repositorio (como um CLAUDE.md) dao contexto sobre convencoes do projeto." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Programacao virou o caso de uso mais maduro de agentes, porque o resultado e verificavel: o teste passa ou falha. Ferramentas como Claude Code, Cursor e Codex mudaram o dia a dia de muitos desenvolvedores, e o debate agora e sobre revisao, qualidade e o que muda na profissao." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "38-guardrails.md"
+        Title = "Guardrails para LLMs"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Guardrails sao camadas de protecao colocadas em volta de um LLM para controlar o que entra e o que sai dele. Servem para bloquear conteudo improprio, vazamento de dados pessoais, respostas fora do escopo do produto ou tentativas de manipulacao." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "Na entrada, filtros e classificadores checam a mensagem do usuario antes de ela chegar ao modelo. Na saida, outro conjunto de checagens valida a resposta: formato, presenca de dados sensiveis, aderencia a politicas. Esses verificadores podem ser regras simples, modelos classificadores pequenos ou outro LLM." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Empresas colocando chatbots e agentes em contato com clientes precisam de garantias alem do bom comportamento do modelo. Regulacoes como o AI Act europeu e incidentes publicos de chatbots dizendo o que nao deviam tornaram guardrails um requisito, com ferramentas dedicadas como NeMo Guardrails e Llama Guard." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "39-leis-de-escala.md"
+        Title = "Leis de Escala (Scaling Laws)"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Leis de escala sao relacoes empiricas que mostram como o desempenho de um modelo melhora de forma previsivel quando se aumenta parametros, dados de treino e computacao. Elas permitem estimar o resultado de um treino gigante antes de gastar o dinheiro nele." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "Pesquisadores treinam varios modelos menores e medem como o erro cai conforme a escala, encontrando curvas bem regulares. O trabalho Chinchilla mostrou que muitos modelos tinham parametros demais para pouco dado, e que o ideal e crescer os dois juntos. Hoje se fala tambem em escala no momento da inferencia, dando mais tempo de 'pensamento' ao modelo." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "As leis de escala justificam os investimentos bilionarios em data centers, entao qualquer sinal de que elas estao desacelerando vira noticia. O debate atual e se o pre-treino ainda rende tanto e quanto do progresso vira de novas frentes como test-time compute, aprendizado por reforco e dados sinteticos." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "40-world-models.md"
+        Title = "World Models"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "World models sao modelos de IA que aprendem uma representacao de como o mundo funciona, a ponto de simular o que acontece a seguir dado um estado e uma acao. Em vez de so gerar texto ou imagem, eles preveem a dinamica de um ambiente." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "O modelo e treinado com enormes volumes de video e, as vezes, dados de acoes (como comandos de um jogo ou de um robo). Ele aprende a prever os proximos quadros ou estados, o que exige captar fisica, objetos e causa e efeito. Depois pode servir de simulador interativo, onde um agente ou robo treina sem precisar do mundo real." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Robotica e IA fisica viraram uma das grandes frentes de investimento, e treinar robos no mundo real e lento e caro. Modelos como o Genie, do Google DeepMind, e o Cosmos, da Nvidia, geram ambientes jogaveis e simulacoes realistas, e varios pesquisadores apontam world models como o proximo passo alem dos LLMs." }
+        )
+    },
+    [PSCustomObject]@{
+        File = "41-busca-hibrida-e-reranking.md"
+        Title = "Busca Hibrida e Reranking"
+        Sections = @(
+            [PSCustomObject]@{ Heading = "O que e"; Body = "Busca hibrida combina busca por palavras-chave (como BM25) com busca semantica por embeddings, para recuperar documentos relevantes num sistema de RAG. Reranking e uma segunda etapa que reordena esses resultados com um modelo mais preciso antes de mandar para o LLM." },
+            [PSCustomObject]@{ Heading = "Como funciona"; Body = "As duas buscas rodam em paralelo: a de palavras-chave acha termos exatos, como codigos e nomes proprios, e a semantica acha textos com o mesmo sentido em outras palavras. Os resultados sao fundidos (por exemplo com Reciprocal Rank Fusion) e um reranker, normalmente um cross-encoder, le cada par pergunta-documento e da uma nota de relevancia mais fina." },
+            [PSCustomObject]@{ Heading = "Por que esta em alta agora"; Body = "Quem colocou RAG em producao descobriu que so busca vetorial erra muito, e que a qualidade da resposta depende mais da recuperacao do que do LLM. Busca hibrida com reranking virou a receita padrao, e bancos vetoriais e provedores de embeddings passaram a oferecer as duas coisas prontas." }
+        )
     }
 )
 
@@ -314,7 +441,9 @@ for ($i = 0; $i -lt $numCommits; $i++) {
     $state | ConvertTo-Json | Set-Content -Path $StateFile -Encoding utf8
 
     git add $filePath $StateFile
-    git commit -m "estudo(IA): $($topic.Title) - $($section.Heading)" --quiet
+    # O trailer Co-authored-by faz cada PR mergeado contar para a conquista
+    # "Pair Extraordinaire" do GitHub. O conteudo foi escrito com o Claude.
+    git commit -m "estudo(IA): $($topic.Title) - $($section.Heading)" -m "Co-authored-by: $CoAuthor" --quiet
 
     $done++
     $prTitles += "$($topic.Title) - $($section.Heading)"
