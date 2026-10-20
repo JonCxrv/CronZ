@@ -9,3 +9,8 @@ Memoria de longo prazo e a capacidade de um agente de IA lembrar de informacoes 
 
 O agente salva fatos relevantes fora do modelo, em arquivos, bancos de dados ou bancos vetoriais, e recupera o que importa no inicio de cada nova tarefa, colocando no contexto. A parte dificil e decidir o que vale guardar, quando atualizar algo que mudou e quando esquecer informacao velha ou errada.
 
+
+## Por que esta em alta agora
+
+Assistentes e agentes de codigo passaram a oferecer memoria persistente, e isso muda a experiencia: o agente deixa de ser um estagiario que chega novo todo dia. Ferramentas como Mem0 e Letta e recursos de memoria nativos dos grandes assistentes transformaram isso numa area propria de engenharia.
+
