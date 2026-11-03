@@ -6,3 +6,8 @@ LLMs (Modelos de Linguagem Grandes) sao redes neurais treinadas em quantidades m
 
 Exemplos atuais: a familia GPT (OpenAI), Claude (Anthropic), Gemini (Google) e modelos abertos como Llama (Meta) e DeepSeek.
 
+
+## Como funcionam
+
+A base e a arquitetura Transformer, que usa atencao (attention) para decidir quais partes do texto sao relevantes entre si. Para gerar uma resposta, o modelo calcula a probabilidade de cada proximo token possivel, sorteia um deles, acrescenta ao texto e repete. O treino tem duas fases: o pre-treino, em que ele aprende padroes da linguagem lendo enormes volumes de texto, e o pos-treino (fine-tuning, RLHF), em que e ajustado para seguir instrucoes e se comportar de forma util e segura.
+
