@@ -12,18 +12,15 @@ projeto de codigo de verdade -- nao adicione testes, CI, linting, etc.
 2. Cria uma branch `estudo/<data-hora>` a partir da `main` e faz esse numero
    de commits nela, cada um adicionando **uma secao de conteudo** sobre um
    topico de IA em `estudos-ia/<NN-slug>.md`.
-3. Da push da branch, abre um PR com `gh pr create`, mergeia e volta pra `main`
-   atualizada no fim. O modo de merge segue o plano do item 4.
+3. Da push da branch, abre um PR com `gh pr create` e mergeia com
+   `gh pr merge --merge --delete-branch` (merge commit, nao squash, pra cada
+   commit continuar contando no grafico). Volta pra `main` atualizada no fim.
+   Ou seja: cada execucao = 1 PR + N commits no perfil.
 4. Todo commit leva o trailer `Co-authored-by: $CoAuthor` (Claude), pra cada
    PR mergeado contar na conquista "Pair Extraordinaire" do GitHub.
    `.study-state.json` guarda `coauthorPRs` (PRs com co-autor, contando a
-   partir do PR #18) e `squashPRs` (PRs em squash, contando a partir do #34).
-   Plano do usuario: fazer 24 PRs em squash (cada um vira 1 commit na `main`).
-   Ao chegar em 24, o script mostra um aviso na tela e nao faz mais commits ate
-   o repo ficar publico; dai em diante volta a usar merge commit. Se voce ver
-   `squashPRs` >= 24, avise o usuario: "chegou a 24 PRs em squash, verifique se
-   a conquista subiu; vou trocar para merge commit, coloque o repositorio como
-   publico".
+   partir do PR #18). O usuario decidiu testar a conquista com o repo publico:
+   enquanto ele estiver privado, o script avisa na tela e nao faz commits.
 
 O conteudo NAO e gerado dinamicamente -- esta tudo escrito a mao dentro do
 array `$Topics` no proprio script. Cada topico tem 3 secoes fixas:
