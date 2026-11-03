@@ -401,11 +401,41 @@ if (Test-Path $StateFile) {
 } else {
     $state = [PSCustomObject]@{ topicIndex = 0; sectionIndex = 0 }
 }
-# Quantos PRs ja sairam com co-autor (meta: 16, pra conquista Pair Extraordinaire)
+# Quantos PRs ja sairam com co-autor, pra conquista Pair Extraordinaire
 if ($null -eq $state.coauthorPRs) {
     $state | Add-Member -NotePropertyName coauthorPRs -NotePropertyValue 0
 }
-$CoauthorGoal = 16
+# Quantos PRs ja sairam em squash (o PR #34 foi o primeiro)
+if ($null -eq $state.squashPRs) {
+    $state | Add-Member -NotePropertyName squashPRs -NotePropertyValue 0
+}
+$SquashGoal  = 24
+$SettingsUrl = "https://github.com/JonCxrv/CronZ/settings"
+
+# O script roda agendado e sem janela, entao o aviso precisa aparecer na tela.
+function Show-Notice([string]$Message) {
+    Write-Output $Message
+    (New-Object -ComObject WScript.Shell).Popup($Message, 0, "CronZ", 48) | Out-Null
+}
+
+trap {
+    Show-Notice "A execucao do CronZ falhou: $_"
+    exit 1
+}
+
+# Plano da conquista: os primeiros PRs saem em squash. Ao chegar na meta, o script
+# volta para merge commit, mas so continua depois que o repo ficar publico.
+if ($state.squashPRs -ge $SquashGoal) {
+    $visibility = gh repo view --json visibility --jq .visibility
+    if ($LASTEXITCODE -ne 0) { throw "Nao consegui consultar a visibilidade do repo." }
+    if ($visibility -ne "PUBLIC") {
+        Show-Notice "Meta de $SquashGoal PRs em squash atingida. Nenhum commit foi feito. Coloque o repositorio como publico em $SettingsUrl para o CronZ voltar a rodar, agora com merge commit."
+        exit 0
+    }
+    $mergeMode = "--merge"
+} else {
+    $mergeMode = "--squash"
+}
 
 $numCommits = Get-Random -Minimum 1 -Maximum 5  # 1 a 4
 Write-Output "Tentando fazer $numCommits commit(s) de conteudo..."
@@ -443,7 +473,10 @@ for ($i = 0; $i -lt $numCommits; $i++) {
         $state.topicIndex++
         $state.sectionIndex = 0
     }
-    if ($done -eq 0) { $state.coauthorPRs++ }  # conta 1 vez por execucao/PR
+    if ($done -eq 0) {  # conta 1 vez por execucao/PR
+        $state.coauthorPRs++
+        if ($mergeMode -eq "--squash") { $state.squashPRs++ }
+    }
     $state | ConvertTo-Json | Set-Content -Path $StateFile -Encoding utf8
 
     git add $filePath $StateFile
@@ -464,18 +497,16 @@ if ($done -gt 0) {
     gh pr create --base main --head $branch --title "estudo(IA): $(Get-Date -Format 'yyyy-MM-dd')" --body $prBody
     if ($LASTEXITCODE -ne 0) { throw "Falha ao abrir o PR da branch $branch." }
 
-    gh pr merge $branch --merge --delete-branch
+    gh pr merge $branch $mergeMode --delete-branch
     if ($LASTEXITCODE -ne 0) { throw "PR aberto, mas o merge falhou -- confira no GitHub." }
 
     git checkout main --quiet
     git pull origin main --quiet
     Write-Output "Concluido: PR com $done commit(s) aberto e mergeado na main."
 
-    Write-Output "PRs com co-autor: $($state.coauthorPRs)/$CoauthorGoal"
-    if ($state.coauthorPRs -eq $CoauthorGoal) {
-        Write-Output ""
-        Write-Output "*** Acabou de fazer $CoauthorGoal execucoes com co-autor! ***"
-        Write-Output "*** Verifique no seu perfil do GitHub se a conquista Pair Extraordinaire (bronze) veio. ***"
+    Write-Output "PRs com co-autor: $($state.coauthorPRs) | PRs em squash: $($state.squashPRs)/$SquashGoal"
+    if ($mergeMode -eq "--squash" -and $state.squashPRs -eq $SquashGoal) {
+        Show-Notice "Chegou a $SquashGoal PRs em squash. Veja se a conquista Pair Extraordinaire subiu. O CronZ vai trocar para merge commit: coloque o repositorio como publico em $SettingsUrl."
     }
 } else {
     git checkout main --quiet
