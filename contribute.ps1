@@ -405,7 +405,8 @@ if (Test-Path $StateFile) {
 if ($null -eq $state.coauthorPRs) {
     $state | Add-Member -NotePropertyName coauthorPRs -NotePropertyValue 0
 }
-$SettingsUrl = "https://github.com/JonCxrv/CronZ/settings"
+$CoauthorGoal = 24
+$SettingsUrl  = "https://github.com/JonCxrv/CronZ/settings"
 
 # O script roda agendado e sem janela, entao o aviso precisa aparecer na tela.
 function Show-Notice([string]$Message) {
@@ -490,7 +491,10 @@ if ($done -gt 0) {
     git pull origin main --quiet
     Write-Output "Concluido: PR com $done commit(s) aberto e mergeado na main."
 
-    Write-Output "PRs com co-autor: $($state.coauthorPRs)"
+    Write-Output "PRs com co-autor: $($state.coauthorPRs)/$CoauthorGoal"
+    if ($state.coauthorPRs -eq $CoauthorGoal) {
+        Show-Notice "Chegou a $CoauthorGoal PRs com co-autor. Verifique se a conquista Pair Extraordinaire subiu de nivel."
+    }
 } else {
     git checkout main --quiet
     git branch -D $branch --quiet

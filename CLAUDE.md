@@ -1,6 +1,6 @@
 # CronZ
 
-Repositorio privado com um unico proposito: gerar contribuicoes diarias no
+Repositorio publico com um unico proposito: gerar contribuicoes diarias no
 grafico do GitHub, mas de um jeito que tambem sirva pra estudar. Nao e um
 projeto de codigo de verdade -- nao adicione testes, CI, linting, etc.
 
@@ -19,8 +19,11 @@ projeto de codigo de verdade -- nao adicione testes, CI, linting, etc.
 4. Todo commit leva o trailer `Co-authored-by: $CoAuthor` (Claude), pra cada
    PR mergeado contar na conquista "Pair Extraordinaire" do GitHub.
    `.study-state.json` guarda `coauthorPRs` (PRs com co-autor, contando a
-   partir do PR #18). O usuario decidiu testar a conquista com o repo publico:
-   enquanto ele estiver privado, o script avisa na tela e nao faz commits.
+   partir do PR #18). O usuario decidiu manter o repo publico e o merge commit
+   ate `coauthorPRs` chegar em 24: enquanto o repo estiver privado, o script
+   avisa na tela e nao faz commits. Ao chegar em 24 o script avisa na tela e
+   continua rodando; se voce ver o contador >= 24, avise o usuario: "chegou a 24
+   PRs com co-autor, verifique se a conquista subiu de nivel".
 
 O conteudo NAO e gerado dinamicamente -- esta tudo escrito a mao dentro do
 array `$Topics` no proprio script. Cada topico tem 3 secoes fixas:
