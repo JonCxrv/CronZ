@@ -73,7 +73,6 @@ Regras a seguir (pedido original do usuario, nao mude sem confirmar):
   "vazios".
 - `.study-state.json` e versionado no git de proposito (garante que o
   progresso segue o repo, nao a maquina local).
-- O usuario pediu em 2026-11-03 para rodar o script 1 vez por dia pela tarefa
-  `CronZ` do Task Scheduler. O registro da tarefa precisa ser feito por ele;
-  confira com `Get-ScheduledTask CronZ` antes de assumir que ela existe. O log
-  fica em `%LOCALAPPDATA%\CronZ\contribute.log`.
+- O script roda 1 vez por dia, as 12h, pela tarefa `CronZ` do Task Scheduler,
+  registrada pelo usuario em 2026-11-03. O log fica em
+  `%LOCALAPPDATA%\CronZ\contribute.log`.
