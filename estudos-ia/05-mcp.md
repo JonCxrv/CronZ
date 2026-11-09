@@ -12,5 +12,5 @@ MCP define uma arquitetura cliente-servidor: um 'servidor MCP' expoe recursos (d
 
 ## Por que esta em alta agora
 
-Desde seu lancamento no fim de 2024, o MCP foi adotado rapidamente por grandes players do setor, tornando-se um padrao de fato para conectar assistentes de IA a ferramentas reais de trabalho. Reduz drasticamente o esforco de integracao -- hoje existem centenas de servidores MCP prontos (GitHub, bancos de dados, Google Drive, Figma etc.) que qualquer cliente compativel pode usar imediatamente.
+Lancado pela Anthropic em novembro de 2024, o MCP foi adotado por OpenAI, Google e Microsoft e virou o padrao de fato para conectar assistentes a ferramentas reais de trabalho. Em dezembro de 2025 a Anthropic doou o protocolo para a Agentic AI Foundation, ligada a Linux Foundation, o que reforcou seu status de padrao neutro. Hoje existem milhares de servidores prontos (GitHub, bancos de dados, Google Drive, Figma etc.) que qualquer cliente compativel pode usar.
 
