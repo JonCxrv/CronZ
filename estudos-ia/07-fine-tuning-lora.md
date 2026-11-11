@@ -9,3 +9,8 @@ Fine-tuning e o processo de continuar o treino de um modelo ja pre-treinado usan
 
 Ajustar todos os bilhoes de parametros de um modelo grande e caro e exige muita memoria. LoRA (Low-Rank Adaptation) congela os pesos originais e treina apenas duas matrizes pequenas por camada, cujo produto aproxima a mudanca necessaria nos pesos, reduzindo drasticamente os parametros treinaveis. QLoRA vai alem e aplica isso sobre um modelo quantizado em 4 bits, permitindo fazer fine-tuning de modelos grandes em uma unica GPU.
 
+
+## Por que esta em alta agora
+
+LoRA e QLoRA democratizaram o fine-tuning: o que antes exigia clusters de GPUs corporativos hoje pode ser feito por um desenvolvedor individual ou uma startup pequena em hardware acessivel. Isso alimentou uma explosao de modelos especializados derivados de modelos-base abertos, e e uma das razoes por tras do crescimento acelerado do ecossistema de modelos open-weight.
+
