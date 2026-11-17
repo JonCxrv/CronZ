@@ -9,3 +9,8 @@ Token e a unidade basica de texto que um LLM le e gera -- pode ser uma palavra i
 
 A tecnica mais usada e o BPE (Byte Pair Encoding): comeca-se com caracteres individuais e, olhando um grande corpus de texto, vai-se juntando os pares mais frequentes em novos tokens, ate formar um vocabulario de dezenas ou centenas de milhares de itens. Cada token vira um numero (ID), e e esse numero que o modelo realmente processa, via uma tabela de embeddings.
 
+
+## Por que esta em alta agora
+
+Tudo em LLM e medido em tokens: preco das APIs, tamanho da janela de contexto, velocidade de geracao. Entender tokenizacao explica esquisitices como errar ao contar as letras de 'strawberry', ja que o modelo ve tokens, nao letras, e tambem por que idiomas diferentes do ingles podem sair mais caros. Tambem ha pesquisa ativa em modelos que dispensam tokenizador e trabalham direto com bytes.
+
